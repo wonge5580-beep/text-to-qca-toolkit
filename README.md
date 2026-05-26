@@ -1,44 +1,90 @@
-# Text-to-QCA Research Tool
+# Text-to-QCA Toolkit for Government–Citizen Interaction Analysis
 
 Live demo: https://wonge5580-beep.github.io/text-to-qca-toolkit/
 
-This project completes Task 2 of the take-home assessment. It converts raw
-text into prototype-based condition scores, calibrates those scores into QCA
-set memberships, and produces basic QCA outputs.
+This repository completes Task 2 of the take-home assessment. It provides a
+browser-based toolkit that converts raw text into prototype-based condition
+scores, calibrates those scores into QCA set memberships, and produces
+QCA-ready outputs.
 
-## What Is Included
+The tool is designed for digital governance research, especially analysis of
+citizen messages, government replies, public consultation comments, and policy
+feedback. It does not require an API key, backend server, database, or manual
+code editing for the main workflow.
 
-- `index.html`, `styles.css`, `app.js`: a browser-based research tool with no
-  required server.
-- `data/demo_texts.csv`: demo Chinese public-message data.
-- `data/prototypes.csv`: example conceptual prototypes.
-- `scripts/generate_sample_outputs.py`: reproducible sample-output generator
-  using only the Python standard library.
-- `outputs/`: generated scoring, calibration, QCA, truth-table, solution, and
-  figure-data files.
-- `TECHNICAL_NOTE.md`: a 500-1,000 word explanation of workflow, assumptions,
-  interpretation, limitations, and future improvements.
+## Quick Start
 
-## Run The Web Tool
+### Option 1: Live Demo
 
-Use the live demo link above, or open `index.html` in a browser.
+Open the hosted demo:
 
-The page includes a `Load demo data` button, so the reviewer can run the main
-workflow without editing code. The reviewer can also upload their own CSV files.
+https://wonge5580-beep.github.io/text-to-qca-toolkit/
 
-Expected input files:
+Click `Load demo data`, then inspect the score table, calibrated membership
+table, truth table, solution configurations, heatmap, and
+consistency-coverage plot.
 
-- Text dataset CSV with one case per row.
-- Required text column selected in the interface.
-- Optional outcome column containing `0/1`, `true/false`, `yes/no`, or numeric
-  fuzzy-set membership.
-- Prototype CSV with `condition_name`, `prototype`, and `type` columns. Use
-  `type=condition` for causal conditions and `type=outcome` for conceptual
-  outcome prototypes.
+### Option 2: Local Run
+
+Open `index.html` directly in a browser.
+
+If the browser blocks local file behavior, serve the folder locally:
+
+```bash
+python3 -m http.server 8765
+```
+
+Then open:
+
+```text
+http://localhost:8765/index.html
+```
+
+## Repository Contents
+
+- `index.html`, `styles.css`, `app.js`: static browser application.
+- `data/demo_texts.csv`: demo Chinese government-citizen interaction data.
+- `data/prototypes.csv`: conceptual prototype descriptions.
+- `outputs/`: sample scoring, calibration, QCA, truth-table, solution, and
+  figure-data outputs.
+- `scripts/generate_sample_outputs.py`: reproducible output generator using
+  only the Python standard library.
+- `TECHNICAL_NOTE.md`: methodological note covering interpretation,
+  assumptions, limitations, and future improvements.
+
+## Input Data
+
+The text dataset should be a CSV file with one row per case. It should include:
+
+- a case identifier column;
+- a text column;
+- optionally, an outcome column coded as `0/1`, `true/false`, `yes/no`, or a
+  numeric fuzzy-set membership value.
+
+The prototype dataset should be a CSV file with these columns:
+
+- `condition_name`
+- `prototype`
+- `type`
+
+Use `type=condition` for QCA causal conditions. Use `type=outcome` for
+conceptual outcome prototypes.
+
+## Main Workflow
+
+1. Upload or load a text dataset.
+2. Select the case ID, text, and outcome columns.
+3. Upload or load conceptual prototypes.
+4. Score each text against each prototype.
+5. Calibrate raw similarity scores into fuzzy-set or crisp-set membership.
+6. Generate a QCA-ready dataset.
+7. Produce a truth table with consistency and coverage.
+8. Identify solution, contradictory, and weak configurations.
+9. Export tables for reporting or further analysis.
 
 ## Reproduce Sample Outputs
 
-From the project folder:
+From the project folder, run:
 
 ```bash
 python3 scripts/generate_sample_outputs.py
@@ -56,22 +102,23 @@ The script reads `data/demo_texts.csv` and `data/prototypes.csv`, then writes:
 
 ## Method Summary
 
-The tool builds transparent text scores using character and word n-gram cosine
-similarity. Chinese characters, Chinese bigrams, Latin words, and Latin word
-bigrams are included so the same method works with Chinese citizen messages and
-English prototype descriptions. Scores are calibrated with user-visible anchors:
+The tool uses transparent lexical scoring rather than a hidden model. It
+constructs character and word n-gram features for Chinese and English text, adds
+a small bilingual concept bridge for the demo concepts, and calculates cosine
+similarity between each text and each prototype.
 
-- full membership: default 0.55
-- crossover: default 0.35
-- full non-membership: default 0.15
-- crisp threshold: default 0.50
+Scores are calibrated with visible user-adjustable anchors:
+
+- full membership: default `0.55`
+- crossover: default `0.35`
+- full non-membership: default `0.15`
+- crisp threshold: default `0.50`
 
 For QCA, each calibrated condition becomes a set-membership column. The truth
 table groups cases by crisp condition membership and reports case count,
-outcome share, consistency, and coverage. Solution configurations are rows whose
-consistency and case count meet the selected thresholds.
+outcome share, consistency, and coverage.
 
-## Notes For Hosting
+## Hosting
 
-Because the interface is static, it can be hosted on GitHub Pages, Netlify,
-Vercel, or any static file host. No backend or API key is required.
+The application is fully static. It can be hosted on GitHub Pages, Netlify,
+Vercel, or any static file host.
