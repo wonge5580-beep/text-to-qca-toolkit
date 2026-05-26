@@ -1,0 +1,3 @@
+configuration,dissatisfaction,policy_demand,coproduction_request,n_cases,case_ids,outcome_value,consistency,coverage,status
+000,0,0,0,2,4;10,1,1.0000,0.2500,solution
+001,0,0,1,3,3;8;12,1,1.0000,0.3750,solution

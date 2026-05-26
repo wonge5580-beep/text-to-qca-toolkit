@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Text-to-QCA Research Tool</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Text-to-QCA Research Tool</h1>
+          <p>Prototype scoring, transparent calibration, and basic QCA outputs for raw text data.</p>
+        </div>
+        <button id="loadDemo" class="primary">Load demo data</button>
+      </header>
+
+      <section class="band">
+        <div class="controls-grid">
+          <label>
+            Text dataset CSV
+            <input id="textFile" type="file" accept=".csv,text/csv">
+          </label>
+          <label>
+            Prototype CSV
+            <input id="protoFile" type="file" accept=".csv,text/csv">
+          </label>
+          <label>
+            Text column
+            <select id="textColumn"></select>
+          </label>
+          <label>
+            Case ID column
+            <select id="caseColumn"></select>
+          </label>
+          <label>
+            Outcome column
+            <select id="outcomeColumn"></select>
+          </label>
+          <label>
+            Calibration mode
+            <select id="calibrationMode">
+              <option value="fuzzy">Fuzzy-set</option>
+              <option value="crisp">Crisp-set</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="band">
+        <h2>Calibration Settings</h2>
+        <div class="controls-grid compact">
+          <label>
+            Full membership
+            <input id="fullIn" type="number" min="0" max="1" step="0.01" value="0.55">
+          </label>
+          <label>
+            Crossover
+            <input id="crossOver" type="number" min="0" max="1" step="0.01" value="0.35">
+          </label>
+          <label>
+            Full non-membership
+            <input id="fullOut" type="number" min="0" max="1" step="0.01" value="0.15">
+          </label>
+          <label>
+            Crisp threshold
+            <input id="crispThreshold" type="number" min="0" max="1" step="0.01" value="0.50">
+          </label>
+          <label>
+            Minimum cases
+            <input id="minCases" type="number" min="1" step="1" value="1">
+          </label>
+          <label>
+            Consistency cutoff
+            <input id="consistencyCutoff" type="number" min="0" max="1" step="0.01" value="0.75">
+          </label>
+        </div>
+        <div class="actions">
+          <button id="runAnalysis" class="primary">Run analysis</button>
+          <button id="resetDemo">Reset demo</button>
+        </div>
+        <p id="message" class="message" role="status"></p>
+      </section>
+
+      <section class="band summary" id="summary"></section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Membership Heatmap</h2>
+          <button data-download="qcaReady">Export QCA dataset</button>
+        </div>
+        <div id="heatmap" class="heatmap"></div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Consistency-Coverage Plot</h2>
+          <button data-download="truthTable">Export truth table</button>
+        </div>
+        <div id="scatter" class="scatter"></div>
+      </section>
+
+      <section class="band tabs">
+        <div class="tab-buttons" role="tablist">
+          <button class="tab active" data-tab="scores">Similarity Scores</button>
+          <button class="tab" data-tab="memberships">Calibrated Membership</button>
+          <button class="tab" data-tab="truth">Truth Table</button>
+          <button class="tab" data-tab="solutions">Solution Configurations</button>
+          <button class="tab" data-tab="explanations">Score Explanations</button>
+        </div>
+        <div id="tableWrap" class="table-wrap"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
