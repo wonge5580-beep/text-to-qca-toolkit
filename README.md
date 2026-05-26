@@ -21,8 +21,8 @@ Open the hosted demo:
 https://wonge5580-beep.github.io/text-to-qca-toolkit/
 
 Click `Load demo data`, then inspect the score table, calibrated membership
-table, truth table, solution configurations, heatmap, and
-consistency-coverage plot.
+table, optional manual adjustments, threshold sensitivity analysis, truth table,
+solution configurations, heatmap, and consistency-coverage plot.
 
 ### Option 2: Local Run
 
@@ -77,10 +77,56 @@ conceptual outcome prototypes.
 3. Upload or load conceptual prototypes.
 4. Score each text against each prototype.
 5. Calibrate raw similarity scores into fuzzy-set or crisp-set membership.
-6. Generate a QCA-ready dataset.
-7. Produce a truth table with consistency and coverage.
-8. Identify solution, contradictory, and weak configurations.
-9. Export tables for reporting or further analysis.
+6. Optionally adjust selected case-condition memberships using researcher
+   judgment.
+7. Generate a QCA-ready dataset.
+8. Test threshold sensitivity across multiple crisp-set thresholds.
+9. Produce a truth table with consistency and coverage.
+10. Identify solution, contradictory, and weak configurations.
+11. Export tables and a Markdown analysis report.
+
+## Advanced Features
+
+### Human-In-The-Loop Adjustment
+
+After calibration, the interface shows the original computational membership
+and an editable adjusted membership for every case-condition pair. Adjusted
+values are used in the QCA-ready dataset, truth table, solution configurations,
+and plots. The original computational values remain visible for auditability.
+
+Manual adjustments should be treated as researcher judgment and justified
+theoretically in any report.
+
+### Threshold Sensitivity Analysis
+
+The toolkit can compare multiple crisp-set thresholds, such as `0.25`, `0.30`,
+`0.35`, `0.40`, and `0.50`. For each threshold, it reports:
+
+- number of truth-table configurations;
+- number of solution configurations;
+- average consistency.
+
+This helps researchers check whether QCA findings depend heavily on one
+threshold choice.
+
+### Case-Level Scoring Explanation
+
+The case-level summary identifies the top matched condition for each case,
+shows the top similarity score, and combines original text, raw scores,
+calibrated memberships, and final adjusted memberships in one table.
+
+### Export Package
+
+The export controls can download:
+
+- similarity scores;
+- calibrated membership table;
+- adjusted membership table;
+- QCA-ready dataset;
+- truth table;
+- solution configurations;
+- threshold sensitivity table;
+- `analysis_report.md`, a short Markdown report summarizing the analysis.
 
 ## Reproduce Sample Outputs
 
@@ -114,8 +160,9 @@ Scores are calibrated with visible user-adjustable anchors:
 - full non-membership: default `0.15`
 - crisp threshold: default `0.50`
 
-For QCA, each calibrated condition becomes a set-membership column. The truth
-table groups cases by crisp condition membership and reports case count,
+For QCA, each final membership column becomes a set-membership condition. If no
+manual override is entered, final membership equals calibrated membership. The
+truth table groups cases by crisp condition membership and reports case count,
 outcome share, consistency, and coverage.
 
 ## Hosting

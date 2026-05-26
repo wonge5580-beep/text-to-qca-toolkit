@@ -23,6 +23,7 @@ let state = {
   prototypeRows: [],
   results: null,
   activeTab: "scores",
+  overrides: {},
 };
 
 const semanticBridge = {
@@ -104,6 +105,25 @@ function downloadCsv(name, rows) {
   link.download = name;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadText(name, text, type = "text/markdown;charset=utf-8") {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function tokenize(text) {
@@ -197,6 +217,7 @@ function readSettings() {
     crispThreshold: Number(el("crispThreshold").value),
     minCases: Number(el("minCases").value),
     consistencyCutoff: Number(el("consistencyCutoff").value),
+    sensitivityThresholds: parseThresholds(el("sensitivityThresholds").value),
   };
   if (!(settings.fullOut < settings.crossOver && settings.crossOver < settings.fullIn)) {
     throw new Error("Calibration anchors must satisfy full non-membership < crossover < full membership.");
@@ -204,65 +225,19 @@ function readSettings() {
   return settings;
 }
 
-function runAnalysis() {
-  const textColumn = el("textColumn").value;
-  const caseColumn = el("caseColumn").value;
-  const outcomeColumn = el("outcomeColumn").value;
-  const settings = readSettings();
-  if (!state.textRows.length) throw new Error("Please load a text dataset.");
-  if (!state.prototypeRows.length) throw new Error("Please load prototype rows.");
-  if (!textColumn) throw new Error("Please select a text column.");
+function parseThresholds(value) {
+  const parsed = String(value || "")
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item) && item >= 0 && item <= 1);
+  return [...new Set(parsed)].sort((a, b) => a - b);
+}
 
-  const conditions = state.prototypeRows
-    .filter((row) => String(row.type || "condition").trim().toLowerCase() !== "outcome")
-    .filter((row) => row.condition_name && row.prototype);
-  if (!conditions.length) throw new Error("Prototype CSV must include at least one condition row.");
-
-  const prototypeVectors = Object.fromEntries(conditions.map((row) => [row.condition_name, tokenize(row.prototype)]));
-  const scoreRows = [];
-  const membershipRows = [];
-  const qcaRows = [];
-  const explanationRows = [];
-  const heatmapRows = [];
-
-  state.textRows.forEach((caseRow, index) => {
-    const caseId = caseRow[caseColumn] || String(index + 1);
-    const text = caseRow[textColumn] || "";
-    const textVector = tokenize(text);
-    const scores = {};
-    const memberships = {};
-    conditions.forEach((condition) => {
-      const name = condition.condition_name;
-      const score = cosine(textVector, prototypeVectors[name]);
-      const membership = settings.mode === "crisp"
-        ? (score >= settings.crispThreshold ? 1 : 0)
-        : fuzzyCalibrate(score, settings.fullIn, settings.crossOver, settings.fullOut);
-      scores[name] = score;
-      memberships[name] = membership;
-      explanationRows.push({
-        case_id: caseId,
-        condition: name,
-        score: format(score),
-        membership: format(membership),
-        overlapping_features: overlapTerms(textVector, prototypeVectors[name]) || "(no literal overlap)",
-      });
-      heatmapRows.push({ case_id: caseId, condition: name, membership });
-    });
-    scoreRows.push({ case_id: caseId, text, ...Object.fromEntries(Object.entries(scores).map(([key, value]) => [key, format(value)])) });
-    membershipRows.push({ case_id: caseId, ...Object.fromEntries(Object.entries(memberships).map(([key, value]) => [key, format(value)])) });
-    qcaRows.push({
-      case_id: caseId,
-      ...Object.fromEntries(Object.entries(memberships).map(([key, value]) => [key, format(value)])),
-      outcome: outcomeColumn ? format(parseOutcome(caseRow[outcomeColumn])) : "",
-    });
-  });
-
-  const conditionNames = conditions.map((row) => row.condition_name);
-  const hasOutcome = outcomeColumn !== "";
+function buildQcaOutputs(qcaRows, conditionNames, settings, hasOutcome, threshold = settings.crispThreshold) {
   const positiveCases = qcaRows.filter((row) => parseOutcome(row.outcome) >= 0.5).length;
   const grouped = {};
   qcaRows.forEach((row) => {
-    const configuration = conditionNames.map((name) => (Number(row[name]) >= settings.crispThreshold ? "1" : "0")).join("");
+    const configuration = conditionNames.map((name) => (Number(row[name]) >= threshold ? "1" : "0")).join("");
     grouped[configuration] ||= [];
     grouped[configuration].push(row);
   });
@@ -286,16 +261,136 @@ function runAnalysis() {
     };
   });
 
-  const solutionRows = truthRows.filter((row) => row.status === "solution");
+  return {
+    truthRows,
+    solutionRows: truthRows.filter((row) => row.status === "solution"),
+  };
+}
+
+function buildAdjustedRows(membershipRows, conditionNames, outcomeByCase) {
+  const adjustedMembershipRows = membershipRows.map((row) => {
+    const adjusted = { case_id: row.case_id };
+    conditionNames.forEach((name) => {
+      const key = `${row.case_id}|${name}`;
+      const override = state.overrides[key];
+      adjusted[name] = override === undefined || override === "" ? row[name] : format(Number(override));
+    });
+    return adjusted;
+  });
+  const adjustedQcaRows = adjustedMembershipRows.map((row) => ({
+    ...row,
+    outcome: outcomeByCase[row.case_id] ?? "",
+  }));
+  return { adjustedMembershipRows, adjustedQcaRows };
+}
+
+function buildSensitivityRows(qcaRows, conditionNames, settings, hasOutcome) {
+  return settings.sensitivityThresholds.map((threshold) => {
+    const outputs = buildQcaOutputs(qcaRows, conditionNames, settings, hasOutcome, threshold);
+    const consistencies = outputs.truthRows.map((row) => Number(row.consistency || 0));
+    const averageConsistency = consistencies.length
+      ? consistencies.reduce((sum, value) => sum + value, 0) / consistencies.length
+      : 0;
+    return {
+      threshold: format(threshold),
+      truth_table_configurations: outputs.truthRows.length,
+      solution_configurations: outputs.solutionRows.length,
+      average_consistency: hasOutcome ? format(averageConsistency) : "",
+    };
+  });
+}
+
+function runAnalysis() {
+  const textColumn = el("textColumn").value;
+  const caseColumn = el("caseColumn").value;
+  const outcomeColumn = el("outcomeColumn").value;
+  const settings = readSettings();
+  if (!state.textRows.length) throw new Error("Please load a text dataset.");
+  if (!state.prototypeRows.length) throw new Error("Please load prototype rows.");
+  if (!textColumn) throw new Error("Please select a text column.");
+
+  const conditions = state.prototypeRows
+    .filter((row) => String(row.type || "condition").trim().toLowerCase() !== "outcome")
+    .filter((row) => row.condition_name && row.prototype);
+  if (!conditions.length) throw new Error("Prototype CSV must include at least one condition row.");
+
+  const prototypeVectors = Object.fromEntries(conditions.map((row) => [row.condition_name, tokenize(row.prototype)]));
+  const scoreRows = [];
+  const membershipRows = [];
+  const explanationRows = [];
+  const outcomeByCase = {};
+  const caseSummaryRows = [];
+
+  state.textRows.forEach((caseRow, index) => {
+    const caseId = caseRow[caseColumn] || String(index + 1);
+    const text = caseRow[textColumn] || "";
+    const textVector = tokenize(text);
+    const scores = {};
+    const memberships = {};
+    conditions.forEach((condition) => {
+      const name = condition.condition_name;
+      const score = cosine(textVector, prototypeVectors[name]);
+      const membership = settings.mode === "crisp"
+        ? (score >= settings.crispThreshold ? 1 : 0)
+        : fuzzyCalibrate(score, settings.fullIn, settings.crossOver, settings.fullOut);
+      scores[name] = score;
+      memberships[name] = membership;
+      explanationRows.push({
+        case_id: caseId,
+        condition: name,
+        score: format(score),
+        membership: format(membership),
+        overlapping_features: overlapTerms(textVector, prototypeVectors[name]) || "(no literal overlap)",
+      });
+    });
+    const top = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+    const scoreFields = Object.fromEntries(Object.entries(scores).map(([key, value]) => [`raw_${key}`, format(value)]));
+    const membershipFields = Object.fromEntries(Object.entries(memberships).map(([key, value]) => [`calibrated_${key}`, format(value)]));
+    caseSummaryRows.push({
+      case_id: caseId,
+      text,
+      top_matched_condition: top ? top[0] : "",
+      top_similarity_score: top ? format(top[1]) : "",
+      explanation: top ? `This case is closest to ${top[0]} based on prototype similarity.` : "",
+      ...scoreFields,
+      ...membershipFields,
+    });
+    scoreRows.push({ case_id: caseId, text, ...Object.fromEntries(Object.entries(scores).map(([key, value]) => [key, format(value)])) });
+    membershipRows.push({ case_id: caseId, ...Object.fromEntries(Object.entries(memberships).map(([key, value]) => [key, format(value)])) });
+    outcomeByCase[caseId] = outcomeColumn ? format(parseOutcome(caseRow[outcomeColumn])) : "";
+  });
+
+  const conditionNames = conditions.map((row) => row.condition_name);
+  const hasOutcome = outcomeColumn !== "";
+  const { adjustedMembershipRows, adjustedQcaRows } = buildAdjustedRows(membershipRows, conditionNames, outcomeByCase);
+  const qcaRows = membershipRows.map((row) => ({ ...row, outcome: outcomeByCase[row.case_id] ?? "" }));
+  const qcaOutputs = buildQcaOutputs(adjustedQcaRows, conditionNames, settings, hasOutcome);
+  const sensitivityRows = buildSensitivityRows(adjustedQcaRows, conditionNames, settings, hasOutcome);
+  const heatmapRows = adjustedMembershipRows.flatMap((row) => conditionNames.map((name) => ({
+    case_id: row.case_id,
+    condition: name,
+    membership: Number(row[name]),
+  })));
+  const finalByCase = Object.fromEntries(adjustedMembershipRows.map((row) => [row.case_id, row]));
+  const enrichedCaseSummaryRows = caseSummaryRows.map((row) => ({
+    ...row,
+    ...Object.fromEntries(conditionNames.map((name) => [`final_${name}`, finalByCase[row.case_id]?.[name] ?? ""])),
+  }));
+
   state.results = {
     settings,
+    hasOutcome,
     conditions: conditionNames,
     scoreRows,
     membershipRows,
+    adjustedMembershipRows,
     qcaRows,
-    truthRows,
-    solutionRows,
+    adjustedQcaRows,
+    truthRows: qcaOutputs.truthRows,
+    solutionRows: qcaOutputs.solutionRows,
+    sensitivityRows,
     explanationRows,
+    caseSummaryRows: enrichedCaseSummaryRows,
     heatmapRows,
   };
 }
@@ -324,16 +419,110 @@ function renderTable(rows) {
   const fields = Object.keys(rows[0]);
   wrap.innerHTML = `
     <table>
-      <thead><tr>${fields.map((field) => `<th>${field}</th>`).join("")}</tr></thead>
+      <thead><tr>${fields.map((field) => `<th>${escapeHtml(field)}</th>`).join("")}</tr></thead>
       <tbody>
         ${rows.map((row) => `<tr>${fields.map((field) => {
           const value = row[field] ?? "";
           const cls = field === "status" ? ` class="status-${String(value).replaceAll(" ", "-")}"` : "";
-          return `<td${cls}>${String(value)}</td>`;
+          return `<td${cls}>${escapeHtml(value)}</td>`;
         }).join("")}</tr>`).join("")}
       </tbody>
     </table>
   `;
+}
+
+function recomputeAdjustedOutputs() {
+  const results = state.results;
+  if (!results) return;
+  const outcomeByCase = Object.fromEntries(results.qcaRows.map((row) => [row.case_id, row.outcome]));
+  const { adjustedMembershipRows, adjustedQcaRows } = buildAdjustedRows(results.membershipRows, results.conditions, outcomeByCase);
+  const outputs = buildQcaOutputs(adjustedQcaRows, results.conditions, results.settings, results.hasOutcome);
+  const sensitivityRows = buildSensitivityRows(adjustedQcaRows, results.conditions, results.settings, results.hasOutcome);
+  const heatmapRows = adjustedMembershipRows.flatMap((row) => results.conditions.map((name) => ({
+    case_id: row.case_id,
+    condition: name,
+    membership: Number(row[name]),
+  })));
+  const finalByCase = Object.fromEntries(adjustedMembershipRows.map((row) => [row.case_id, row]));
+  const caseSummaryRows = results.caseSummaryRows.map((row) => {
+    const clean = Object.fromEntries(Object.entries(row).filter(([key]) => !key.startsWith("final_")));
+    return {
+      ...clean,
+      ...Object.fromEntries(results.conditions.map((name) => [`final_${name}`, finalByCase[row.case_id]?.[name] ?? ""])),
+    };
+  });
+  state.results = {
+    ...results,
+    adjustedMembershipRows,
+    adjustedQcaRows,
+    truthRows: outputs.truthRows,
+    solutionRows: outputs.solutionRows,
+    sensitivityRows,
+    heatmapRows,
+    caseSummaryRows,
+  };
+}
+
+function renderAdjustmentTable() {
+  const results = state.results;
+  const wrap = el("adjustmentWrap");
+  if (!results) {
+    wrap.innerHTML = "";
+    return;
+  }
+  const rows = results.membershipRows;
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>case_id</th>
+          ${results.conditions.map((name) => `<th>${escapeHtml(name)}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.case_id)}</td>
+            ${results.conditions.map((name) => {
+              const key = `${row.case_id}|${name}`;
+              const adjusted = results.adjustedMembershipRows.find((item) => item.case_id === row.case_id)?.[name] ?? row[name];
+              return `
+                <td>
+                  <div class="override-cell">
+                    <small>original ${escapeHtml(row[name])}</small>
+                    <input class="mini-input" data-override-key="${escapeHtml(key)}" type="number" min="0" max="1" step="0.01" value="${escapeHtml(adjusted)}">
+                  </div>
+                </td>
+              `;
+            }).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+  wrap.querySelectorAll("[data-override-key]").forEach((input) => {
+    const applyOverride = () => {
+      const value = Math.max(0, Math.min(1, Number(input.value)));
+      if (!Number.isFinite(value)) return;
+      state.overrides[input.dataset.overrideKey] = format(value);
+      input.value = format(value);
+      recomputeAdjustedOutputs();
+      renderAll();
+      setMessage("Manual adjustment applied. QCA outputs now use adjusted memberships.");
+    };
+    input.addEventListener("change", applyOverride);
+    input.addEventListener("input", () => {
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value < 0 || value > 1) return;
+      state.overrides[input.dataset.overrideKey] = format(value);
+      recomputeAdjustedOutputs();
+      renderSummary();
+      renderSensitivity();
+      renderHeatmap();
+      renderScatter();
+      renderActiveTab();
+    });
+  });
 }
 
 function renderHeatmap() {
@@ -375,11 +564,48 @@ function renderScatter() {
   scatter.innerHTML = `<div class="axis y">consistency</div><div class="axis x">coverage</div>${dots.join("")}`;
 }
 
+function renderSensitivity() {
+  const results = state.results;
+  const plot = el("sensitivityPlot");
+  const wrap = el("sensitivityWrap");
+  if (!results) {
+    plot.innerHTML = "";
+    wrap.innerHTML = "";
+    return;
+  }
+  const maxConfigurations = Math.max(1, ...results.sensitivityRows.map((row) => Number(row.truth_table_configurations)));
+  const maxSolutions = Math.max(1, ...results.sensitivityRows.map((row) => Number(row.solution_configurations)));
+  plot.innerHTML = results.sensitivityRows.map((row) => {
+    const configHeight = Math.max(3, (Number(row.truth_table_configurations) / maxConfigurations) * 112);
+    const solutionHeight = Math.max(3, (Number(row.solution_configurations) / maxSolutions) * 112);
+    return `
+      <div class="bar-group" title="threshold ${escapeHtml(row.threshold)}">
+        <div class="bar-stack">
+          <div class="bar" style="height:${configHeight}px"></div>
+          <div class="bar solution" style="height:${solutionHeight}px"></div>
+        </div>
+        <div class="bar-label">${escapeHtml(row.threshold)}</div>
+      </div>
+    `;
+  }).join("");
+  const fields = Object.keys(results.sensitivityRows[0] || {});
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>${fields.map((field) => `<th>${escapeHtml(field)}</th>`).join("")}</tr></thead>
+      <tbody>
+        ${results.sensitivityRows.map((row) => `<tr>${fields.map((field) => `<td>${escapeHtml(row[field])}</td>`).join("")}</tr>`).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
 function renderActiveTab() {
   if (!state.results) return;
   const map = {
     scores: state.results.scoreRows,
     memberships: state.results.membershipRows,
+    adjusted: state.results.adjustedMembershipRows,
+    caseSummary: state.results.caseSummaryRows,
     truth: state.results.truthRows,
     solutions: state.results.solutionRows,
     explanations: state.results.explanationRows,
@@ -388,10 +614,58 @@ function renderActiveTab() {
 }
 
 function renderAll() {
+  recomputeAdjustedOutputs();
   renderSummary();
+  renderAdjustmentTable();
+  renderSensitivity();
   renderHeatmap();
   renderScatter();
   renderActiveTab();
+}
+
+function buildMarkdownReport() {
+  const results = state.results;
+  if (!results) return "# Analysis Report\n\nNo analysis has been run.\n";
+  const solutionLines = results.solutionRows.length
+    ? results.solutionRows.map((row) => `- ${row.configuration}: cases ${row.case_ids}; consistency ${row.consistency}; coverage ${row.coverage}`).join("\n")
+    : "- No solution configurations met the selected criteria.";
+  return `# Text-to-QCA Analysis Report
+
+## Dataset
+
+- Cases analyzed: ${state.textRows.length}
+- Selected conditions: ${results.conditions.join(", ")}
+- Calibration method: ${results.settings.mode}
+- Crisp threshold used for main truth table: ${format(results.settings.crispThreshold)}
+- Minimum cases: ${results.settings.minCases}
+- Consistency cutoff: ${format(results.settings.consistencyCutoff)}
+
+## Results
+
+- Truth-table configurations: ${results.truthRows.length}
+- Solution configurations: ${results.solutionRows.length}
+
+## Solution Configurations
+
+${solutionLines}
+
+## Threshold Sensitivity
+
+${results.sensitivityRows.map((row) => `- Threshold ${row.threshold}: ${row.truth_table_configurations} configurations, ${row.solution_configurations} solutions, average consistency ${row.average_consistency}`).join("\n")}
+
+## Human-In-The-Loop Adjustment
+
+Adjusted membership values may reflect researcher judgment. Any manual override
+should be theoretically justified and reported alongside the original
+computational membership.
+
+## Key Limitations
+
+- Prototype-based scoring is transparent assistance, not final human coding.
+- Results depend on prototype quality, calibration anchors, and threshold choices.
+- Small datasets can produce unstable truth tables and apparent configurations.
+- The bilingual concept bridge should be audited before use in a new project.
+`;
 }
 
 function setMessage(text, isError = false) {
@@ -400,6 +674,7 @@ function setMessage(text, isError = false) {
 }
 
 function loadDemo() {
+  state.overrides = {};
   state.textRows = parseCsv(demoTextCsv);
   state.prototypeRows = parseCsv(demoPrototypeCsv);
   updateColumnControls();
@@ -412,6 +687,7 @@ async function loadFile(input, target) {
   const file = input.files[0];
   if (!file) return;
   const text = await file.text();
+  state.overrides = {};
   state[target] = parseCsv(text);
   if (target === "textRows") updateColumnControls();
   setMessage(`${file.name} loaded.`);
@@ -442,9 +718,21 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-download]").forEach((button) => {
     button.addEventListener("click", () => {
       if (!state.results) return;
-      const rows = button.dataset.download === "qcaReady" ? state.results.qcaRows : state.results.truthRows;
-      const name = button.dataset.download === "qcaReady" ? "qca_ready_dataset.csv" : "truth_table.csv";
-      downloadCsv(name, rows);
+      const exports = {
+        scores: ["similarity_scores.csv", state.results.scoreRows],
+        memberships: ["calibrated_membership.csv", state.results.membershipRows],
+        adjustedMembership: ["adjusted_membership.csv", state.results.adjustedMembershipRows],
+        qcaReady: ["qca_ready_dataset.csv", state.results.adjustedQcaRows],
+        truthTable: ["truth_table.csv", state.results.truthRows],
+        solutions: ["solution_configurations.csv", state.results.solutionRows],
+        sensitivity: ["threshold_sensitivity.csv", state.results.sensitivityRows],
+      };
+      if (button.dataset.download === "report") {
+        downloadText("analysis_report.md", buildMarkdownReport());
+        return;
+      }
+      const item = exports[button.dataset.download];
+      if (item) downloadCsv(item[0], item[1]);
     });
   });
   loadDemo();

@@ -32,6 +32,9 @@ The tool calculates cosine similarity between each case text and each prototype.
 The score table is shown directly in the interface, so the researcher can see
 how raw text becomes condition scores. The interface also lists overlapping
 features as a simple explanation for why a case is close to a prototype.
+Prototype scoring should be treated as transparent assistance rather than final
+coding: it helps order and inspect cases, but substantive interpretation remains
+the researcher's responsibility.
 
 ## Calibration
 
@@ -47,12 +50,24 @@ intentionally conservative because short Chinese texts and English conceptual
 prototypes may not share many literal features. Researchers should adjust
 anchors after inspecting score distributions and substantive examples.
 
+## Human-In-The-Loop Adjustment
+
+After calibration, researchers can manually adjust selected case-condition
+memberships. This matters because QCA is a research-design exercise, not only a
+classification task. A short text may be ambiguous, a prototype may miss local
+phrasing, or background knowledge may justify a different membership score. The
+tool therefore keeps both the original computational membership and the adjusted
+membership. Manual adjustment should be theoretically justified and reported
+transparently.
+
 ## QCA Outputs
 
 The QCA-ready dataset has one row per case, one column per condition, and a
 clearly identified outcome column. The truth table groups cases by crisp
-condition membership. For each configuration, the tool reports the number of
-cases, case IDs, outcome value, consistency, and coverage.
+condition membership using the final adjusted membership values. If the
+researcher makes no manual adjustments, final membership is identical to the
+calibrated computational membership. For each configuration, the tool reports
+the number of cases, case IDs, outcome value, consistency, and coverage.
 
 Consistency is calculated as the proportion of cases in a configuration that
 show the outcome. Coverage is calculated as the proportion of all positive
@@ -60,6 +75,13 @@ outcome cases covered by the configuration. The solution table reports
 configurations that meet the selected minimum case count and consistency
 threshold. Weak or contradictory configurations remain visible in the truth
 table.
+
+The threshold sensitivity table tests several crisp thresholds and reports how
+many truth-table configurations, solution configurations, and average
+consistency values appear under each threshold. This is important because QCA
+results can change when cases move across set-membership cutoffs. Sensitivity
+analysis helps researchers decide whether a finding is robust or mainly an
+artifact of one calibration choice.
 
 ## Interpretation
 
