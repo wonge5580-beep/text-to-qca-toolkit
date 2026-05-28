@@ -7,11 +7,15 @@ browser-based research prototype that converts raw text into prototype-based
 condition scores, calibrates those scores into QCA set memberships, and
 produces QCA-ready outputs.
 
+This project prioritises interpretability and methodological transparency over
+model complexity. The current implementation is designed as a lightweight
+exploratory research assistant rather than a production-level automated coding
+system.
+
 The tool is designed with digital governance research in mind, especially
 analysis of citizen messages, government replies, public consultation comments,
-and policy feedback. The current version focuses on exploratory research
-support rather than production-level automated coding. It does not require an
-API key, backend server, database, or manual code editing for the main workflow.
+and policy feedback. It does not require an API key, backend server, database,
+or manual code editing for the main workflow.
 
 ## Quick Start
 
