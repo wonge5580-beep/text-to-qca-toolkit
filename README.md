@@ -2,6 +2,8 @@
 
 Live demo: https://wonge5580-beep.github.io/text-to-qca-toolkit/
 
+GitHub repository: https://github.com/wonge5580-beep/text-to-qca-toolkit
+
 This repository completes Task 2 of the take-home assessment. It is a small
 browser-based research prototype that converts raw text into prototype-based
 condition scores, calibrates those scores into QCA set memberships, and
@@ -193,6 +195,13 @@ For QCA, each final membership column becomes a set-membership condition. If no
 manual override is entered, final membership equals calibrated membership. The
 truth table groups cases by crisp condition membership and reports case count,
 outcome share, consistency, and coverage.
+
+## Limitations
+
+The current version is best understood as an exploratory research assistant.
+Results depend on prototype quality, calibration choices, threshold settings,
+and case-level interpretation. The lexical scoring method is transparent and
+auditable, but it is not a replacement for human coding or contextual reading.
 
 ## Hosting
 
