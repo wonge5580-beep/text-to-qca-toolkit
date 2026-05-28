@@ -300,6 +300,40 @@ function buildSensitivityRows(qcaRows, conditionNames, settings, hasOutcome) {
   });
 }
 
+function getResearcherNotes() {
+  return el("researcherNotes")?.value.trim() || "";
+}
+
+function buildConditionInterpretations(conditions) {
+  return conditions.map((condition) => ({
+    condition: condition.condition_name,
+    prototype: condition.prototype,
+    interpretation: `Higher scores on ${condition.condition_name} indicate stronger conceptual similarity to the supplied prototype. This should be read as computational assistance, not objective truth or a substitute for contextual coding.`,
+  }));
+}
+
+function buildAuditRows(results = state.results) {
+  if (!results) return [];
+  return [
+    { decision: "analysis_timestamp", value: results.analysisTimestamp },
+    { decision: "text_column", value: results.selectedColumns.text },
+    { decision: "outcome_column", value: results.selectedColumns.outcome || "(none selected)" },
+    { decision: "case_id_column", value: results.selectedColumns.caseId },
+    { decision: "selected_conditions", value: results.conditions.join("; ") },
+    { decision: "calibration_method", value: results.settings.mode },
+    { decision: "crisp_set_threshold", value: format(results.settings.crispThreshold) },
+    { decision: "fuzzy_full_membership", value: format(results.settings.fullIn) },
+    { decision: "fuzzy_crossover", value: format(results.settings.crossOver) },
+    { decision: "fuzzy_full_non_membership", value: format(results.settings.fullOut) },
+    { decision: "minimum_cases", value: results.settings.minCases },
+    { decision: "consistency_cutoff", value: format(results.settings.consistencyCutoff) },
+    { decision: "sensitivity_thresholds", value: results.settings.sensitivityThresholds.map(format).join("; ") },
+    { decision: "number_of_cases", value: state.textRows.length },
+    { decision: "number_of_conditions", value: results.conditions.length },
+    { decision: "researcher_notes", value: getResearcherNotes() || "(none entered)" },
+  ];
+}
+
 function runAnalysis() {
   const textColumn = el("textColumn").value;
   const caseColumn = el("caseColumn").value;
@@ -380,7 +414,14 @@ function runAnalysis() {
   state.results = {
     settings,
     hasOutcome,
+    analysisTimestamp: new Date().toISOString(),
+    selectedColumns: {
+      text: textColumn,
+      caseId: caseColumn,
+      outcome: outcomeColumn,
+    },
     conditions: conditionNames,
+    conditionInterpretationRows: buildConditionInterpretations(conditions),
     scoreRows,
     membershipRows,
     adjustedMembershipRows,
@@ -599,6 +640,32 @@ function renderSensitivity() {
   `;
 }
 
+function renderAuditTrail() {
+  const results = state.results;
+  const auditWrap = el("auditLogWrap");
+  const interpretations = el("conditionInterpretations");
+  if (!results) {
+    auditWrap.innerHTML = "";
+    interpretations.innerHTML = "";
+    return;
+  }
+  const auditRows = buildAuditRows(results);
+  auditWrap.innerHTML = `
+    <table>
+      <thead><tr><th>decision</th><th>value</th></tr></thead>
+      <tbody>
+        ${auditRows.map((row) => `<tr><td>${escapeHtml(row.decision)}</td><td>${escapeHtml(row.value)}</td></tr>`).join("")}
+      </tbody>
+    </table>
+  `;
+  interpretations.innerHTML = results.conditionInterpretationRows.map((row) => `
+    <div class="interpretation-item">
+      <strong>${escapeHtml(row.condition)}</strong>
+      <p>${escapeHtml(row.interpretation)}</p>
+    </div>
+  `).join("");
+}
+
 function renderActiveTab() {
   if (!state.results) return;
   const map = {
@@ -616,6 +683,7 @@ function renderActiveTab() {
 function renderAll() {
   recomputeAdjustedOutputs();
   renderSummary();
+  renderAuditTrail();
   renderAdjustmentTable();
   renderSensitivity();
   renderHeatmap();
@@ -626,6 +694,14 @@ function renderAll() {
 function buildMarkdownReport() {
   const results = state.results;
   if (!results) return "# Analysis Report\n\nNo analysis has been run.\n";
+  const researcherNotes = getResearcherNotes() || "(No researcher notes entered.)";
+  const auditLines = buildAuditRows(results)
+    .filter((row) => row.decision !== "researcher_notes")
+    .map((row) => `- ${row.decision}: ${row.value}`)
+    .join("\n");
+  const conditionLines = results.conditionInterpretationRows
+    .map((row) => `- ${row.condition}: ${row.interpretation}`)
+    .join("\n");
   const solutionLines = results.solutionRows.length
     ? results.solutionRows.map((row) => `- ${row.configuration}: cases ${row.case_ids}; consistency ${row.consistency}; coverage ${row.coverage}`).join("\n")
     : "- No solution configurations met the selected criteria.";
@@ -639,6 +715,14 @@ function buildMarkdownReport() {
 - Crisp threshold used for main truth table: ${format(results.settings.crispThreshold)}
 - Minimum cases: ${results.settings.minCases}
 - Consistency cutoff: ${format(results.settings.consistencyCutoff)}
+
+## Research Decision Log
+
+${auditLines}
+
+## Condition Descriptions
+
+${conditionLines}
 
 ## Results
 
@@ -659,9 +743,14 @@ Adjusted membership values may reflect researcher judgment. Any manual override
 should be theoretically justified and reported alongside the original
 computational membership.
 
+## Researcher Notes
+
+${researcherNotes}
+
 ## Key Limitations
 
 - Prototype-based scoring is transparent assistance, not final human coding.
+- Prototype similarity scores do not replace human coding, contextual interpretation, or theoretical judgment.
 - Results depend on prototype quality, calibration anchors, and threshold choices.
 - Small datasets can produce unstable truth tables and apparent configurations.
 - The bilingual concept bridge should be audited before use in a new project.
@@ -698,6 +787,7 @@ document.addEventListener("DOMContentLoaded", () => {
   el("resetDemo").addEventListener("click", loadDemo);
   el("textFile").addEventListener("change", (event) => loadFile(event.target, "textRows"));
   el("protoFile").addEventListener("change", (event) => loadFile(event.target, "prototypeRows"));
+  el("researcherNotes").addEventListener("input", renderAuditTrail);
   el("runAnalysis").addEventListener("click", () => {
     try {
       runAnalysis();
@@ -726,6 +816,7 @@ document.addEventListener("DOMContentLoaded", () => {
         truthTable: ["truth_table.csv", state.results.truthRows],
         solutions: ["solution_configurations.csv", state.results.solutionRows],
         sensitivity: ["threshold_sensitivity.csv", state.results.sensitivityRows],
+        auditLog: ["research_audit_log.csv", buildAuditRows()],
       };
       if (button.dataset.download === "report") {
         downloadText("analysis_report.md", buildMarkdownReport());

@@ -3,21 +3,20 @@
 ## Purpose
 
 This tool helps researchers move from raw qualitative text to a QCA-ready
-dataset. It is intended for digital governance research settings such as
-citizen messages, government replies, public consultation comments, and policy
-feedback. The goal is not to replace human interpretation. Instead, the tool
-offers a transparent first pass that researchers can inspect, adjust, and
-document before using the results in configurational analysis.
+dataset. It is designed for digital governance research involving citizen
+messages, government replies, consultation comments, and policy feedback. The
+tool is not meant to automate interpretation. It offers a transparent first pass
+that researchers can inspect, adjust, and document before using the results in
+configurational analysis.
 
 ## Required Data
 
 The required inputs are simple CSV files. The text dataset should contain one
 row per case, a case identifier, a text column, and preferably an outcome
 column. The prototype file should contain `condition_name`, `prototype`, and
-`type`. Prototypes are short conceptual descriptions written by the researcher.
-Rows marked `condition` become QCA causal conditions. Rows marked `outcome` are
-retained as conceptual references, while the main QCA outcome is selected from
-the uploaded text dataset when available.
+`type`. Rows marked `condition` become QCA causal conditions. Rows marked
+`outcome` are retained as conceptual references, while the main QCA outcome is
+selected from the uploaded text dataset when available.
 
 ## Scoring Method
 
@@ -29,12 +28,10 @@ linking terms such as complaint, dissatisfaction, policy, cooperate, and
 response to Chinese expressions such as 投诉, 不满, 政策, 配合, and 回复.
 
 The tool calculates cosine similarity between each case text and each prototype.
-The score table is shown directly in the interface, so the researcher can see
-how raw text becomes condition scores. The interface also lists overlapping
-features as a simple explanation for why a case is close to a prototype.
-Prototype scoring should be treated as transparent assistance rather than final
-coding: it helps order and inspect cases, but substantive interpretation remains
-the researcher's responsibility.
+The score table, case-level summary, and overlapping features are visible in the
+interface. Prototype scoring should be treated as transparent assistance rather
+than final coding: it helps order and inspect cases, but substantive
+interpretation remains the researcher's responsibility.
 
 ## Calibration
 
@@ -42,77 +39,65 @@ The calibration stage converts raw similarity scores into set memberships. The
 default fuzzy-set rule uses three anchors: full non-membership at `0.15`,
 crossover at `0.35`, and full membership at `0.55`. Scores below the lower
 anchor become `0`; scores above the upper anchor become `1`; scores between
-anchors are linearly interpolated, with the crossover set to `0.5`.
+anchors are linearly interpolated. The crisp-set option uses a selected
+threshold. Researchers should adjust anchors only after inspecting score
+distributions and substantive examples.
 
-The crisp-set option uses a user-selected threshold. Scores at or above the
-threshold are coded `1`, and lower scores are coded `0`. These defaults are
-intentionally conservative because short Chinese texts and English conceptual
-prototypes may not share many literal features. Researchers should adjust
-anchors after inspecting score distributions and substantive examples.
-
-## Human-In-The-Loop Adjustment
+## Human Judgment
 
 After calibration, researchers can manually adjust selected case-condition
 memberships. This matters because QCA is a research-design exercise, not only a
 classification task. A short text may be ambiguous, a prototype may miss local
 phrasing, or background knowledge may justify a different membership score. The
-tool therefore keeps both the original computational membership and the adjusted
-membership. Manual adjustment should be theoretically justified and reported
-transparently.
+tool keeps both the original computational membership and the adjusted
+membership so that human judgment remains auditable.
 
 ## QCA Outputs
 
 The QCA-ready dataset has one row per case, one column per condition, and a
 clearly identified outcome column. The truth table groups cases by crisp
-condition membership using the final adjusted membership values. If the
-researcher makes no manual adjustments, final membership is identical to the
-calibrated computational membership. For each configuration, the tool reports
-the number of cases, case IDs, outcome value, consistency, and coverage.
+condition membership using the final adjusted membership values. If no manual
+adjustment is entered, final membership equals calibrated computational
+membership. For each configuration, the tool reports cases, outcome value,
+consistency, and coverage. Weak or contradictory configurations remain visible.
 
-Consistency is calculated as the proportion of cases in a configuration that
-show the outcome. Coverage is calculated as the proportion of all positive
-outcome cases covered by the configuration. The solution table reports
-configurations that meet the selected minimum case count and consistency
-threshold. Weak or contradictory configurations remain visible in the truth
-table.
-
-The threshold sensitivity table tests several crisp thresholds and reports how
+The threshold sensitivity table tests multiple crisp thresholds and reports how
 many truth-table configurations, solution configurations, and average
 consistency values appear under each threshold. This is important because QCA
 results can change when cases move across set-membership cutoffs. Sensitivity
-analysis helps researchers decide whether a finding is robust or mainly an
-artifact of one calibration choice.
+analysis helps researchers see whether findings are robust or mainly artifacts
+of one calibration choice.
+
+## Research Transparency
+
+The toolkit includes a research transparency and audit trail module. It records
+selected columns, conditions, calibration method, thresholds, case count,
+condition count, and analysis timestamp. It also lets the researcher enter
+methodological notes about theoretical reasoning, calibration decisions, coding
+assumptions, or contextual observations. These notes and settings are included
+in the exported Markdown report and audit log.
+
+This design supports reproducibility because another researcher can inspect the
+workflow settings and intermediate outputs, not only the final solution table.
+The project intentionally avoids opaque black-box APIs and external model calls.
+That choice limits semantic sophistication, but it makes the scoring process
+inspectable, portable, and suitable for GitHub Pages deployment.
 
 ## Interpretation
 
-The outputs should be interpreted as research aids, not final automated
-judgments. A high membership score means that a case is textually and
-conceptually close to the relevant prototype under the current scoring rule. A
-solution configuration indicates a condition pattern that is consistently
-associated with the selected outcome in the uploaded dataset. Researchers
-should review individual cases, inspect intermediate scores, and justify
-calibration thresholds in relation to the research design.
+The outputs should be interpreted as research aids, not automated truth claims.
+A high membership score means that a case is textually and conceptually close to
+the relevant prototype under the current scoring rule. A solution configuration
+indicates a condition pattern associated with the selected outcome in the
+uploaded dataset. Researchers should review individual cases, inspect
+intermediate scores, justify calibration thresholds, and report manual
+adjustments when they affect results.
 
-## Assumptions
-
-The tool assumes that prototypes are substantively meaningful, that the selected
-text field contains enough information for classification, and that the chosen
-calibration anchors are defensible. It also assumes that the outcome variable is
-appropriate for QCA and that each row represents a distinct case.
-
-## Limitations
+## Limitations And Future Improvements
 
 The main limitations are prototype sensitivity, text ambiguity, small-sample
 instability, and the lexical nature of the scoring method. The bilingual bridge
-improves the demo, but it should be expanded, audited, or replaced for a new
-project. The tool does not currently perform formal Boolean minimization or
-validate scores against human-coded labels.
-
-## Future Improvements
-
-With more time, I would add multilingual embedding models, manual validation
-labels, intercoder comparison, formal minimization algorithms, and richer
-explanation tools that show matched passages rather than only overlapping
-features. I would also add project-level configuration files so researchers can
-save prototype sets, calibration anchors, and reporting preferences across
-multiple datasets.
+improves the demo but should be expanded, audited, or replaced for new projects.
+With more time, I would add multilingual embeddings, manual validation labels,
+intercoder comparison, formal minimization algorithms, and richer explanation
+tools that show matched passages rather than only overlapping features.

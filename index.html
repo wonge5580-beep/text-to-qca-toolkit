@@ -98,6 +98,33 @@
       <section class="band summary" id="summary"></section>
 
       <section class="band">
+        <details class="audit-panel" open>
+          <summary>Research Transparency &amp; Audit Trail</summary>
+          <div class="warning-box">
+            This tool provides computational assistance for exploratory configurational analysis. Prototype similarity scores do not replace human coding, contextual interpretation, or theoretical judgment.
+          </div>
+          <div class="audit-grid">
+            <div>
+              <h2>Research Decision Log</h2>
+              <div id="auditLogWrap" class="table-wrap slim"></div>
+            </div>
+            <div>
+              <label>
+                Researcher Notes
+                <textarea id="researcherNotes" placeholder="Explain theoretical reasoning, calibration decisions, coding assumptions, or contextual observations."></textarea>
+              </label>
+              <p class="note">These notes are included in the Markdown report and help document methodological judgment.</p>
+            </div>
+          </div>
+          <div class="section-head">
+            <h2>Intermediate Interpretation Panel</h2>
+            <button data-download="auditLog">Export research audit log</button>
+          </div>
+          <div id="conditionInterpretations" class="interpretation-grid"></div>
+        </details>
+      </section>
+
+      <section class="band">
         <div class="section-head">
           <div>
             <h2>Human-In-The-Loop Membership Adjustment</h2>
@@ -158,6 +185,7 @@
           <button data-download="truthTable">Truth table</button>
           <button data-download="solutions">Solution configurations</button>
           <button data-download="sensitivity">Threshold sensitivity</button>
+          <button data-download="auditLog">Research audit log</button>
           <button data-download="report" class="primary">Markdown report</button>
         </div>
       </section>

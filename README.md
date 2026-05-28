@@ -126,7 +126,24 @@ The export controls can download:
 - truth table;
 - solution configurations;
 - threshold sensitivity table;
+- research audit log;
 - `analysis_report.md`, a short Markdown report summarizing the analysis.
+
+### Research Transparency & Audit Trail
+
+The toolkit includes a collapsible research transparency panel that records
+workflow decisions such as selected columns, selected conditions, calibration
+method, thresholds, case count, condition count, and analysis timestamp. It also
+provides researcher notes and condition-level interpretation statements.
+
+## Why Transparency Matters In Computational Social Science
+
+Text-as-data workflows involve measurement choices, calibration decisions, and
+contextual interpretation. The toolkit therefore keeps intermediate outputs
+visible instead of hiding them behind a black-box score. Researchers can inspect
+raw similarity scores, calibrated memberships, adjusted memberships, truth-table
+logic, threshold sensitivity, and the audit trail before interpreting any QCA
+result.
 
 ## Reproduce Sample Outputs
 
@@ -152,6 +169,10 @@ The tool uses transparent lexical scoring rather than a hidden model. It
 constructs character and word n-gram features for Chinese and English text, adds
 a small bilingual concept bridge for the demo concepts, and calculates cosine
 similarity between each text and each prototype.
+
+The project intentionally avoids external black-box APIs, backend services, and
+runtime package dependencies so that the demo remains reproducible on GitHub
+Pages and easy for reviewers to inspect.
 
 Scores are calibrated with visible user-adjustable anchors:
 

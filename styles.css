@@ -68,6 +68,52 @@ p {
   margin: 8px 0 0;
 }
 
+.audit-panel summary {
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.warning-box {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-left: 4px solid var(--amber);
+  border-radius: 6px;
+  background: #fff8e7;
+  color: #49370c;
+  line-height: 1.5;
+}
+
+.audit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.interpretation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.interpretation-item {
+  min-height: 120px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.interpretation-item strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.interpretation-item p {
+  margin: 0;
+}
+
 .band {
   padding: 22px 0;
   border-bottom: 1px solid var(--line);
@@ -106,6 +152,18 @@ input,
 select {
   width: 100%;
   padding: 8px 10px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
 }
 
 button {
@@ -410,7 +468,9 @@ td {
   }
 
   .controls-grid,
-  .summary {
+  .summary,
+  .audit-grid,
+  .interpretation-grid {
     grid-template-columns: 1fr;
   }
 }
