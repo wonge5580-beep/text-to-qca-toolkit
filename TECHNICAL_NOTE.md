@@ -5,9 +5,10 @@
 This tool helps researchers move from raw qualitative text to a QCA-ready
 dataset. It is designed for digital governance research involving citizen
 messages, government replies, consultation comments, and policy feedback. The
-tool is not meant to automate interpretation. It offers a transparent first pass
-that researchers can inspect, adjust, and document before using the results in
-configurational analysis.
+current version focuses on exploratory research support rather than
+production-level automated coding. It is not meant to automate interpretation;
+it offers a transparent first pass that researchers can inspect, adjust, and
+document before using the results in configurational analysis.
 
 ## Required Data
 
@@ -31,7 +32,9 @@ The tool calculates cosine similarity between each case text and each prototype.
 The score table, case-level summary, and overlapping features are visible in the
 interface. Prototype scoring should be treated as transparent assistance rather
 than final coding: it helps order and inspect cases, but substantive
-interpretation remains the researcher's responsibility.
+interpretation remains the researcher's responsibility. I kept the scoring
+method relatively simple on purpose, because a method that can be inspected is
+more useful here than a more impressive model that cannot be audited.
 
 ## Calibration
 
@@ -40,8 +43,10 @@ default fuzzy-set rule uses three anchors: full non-membership at `0.15`,
 crossover at `0.35`, and full membership at `0.55`. Scores below the lower
 anchor become `0`; scores above the upper anchor become `1`; scores between
 anchors are linearly interpolated. The crisp-set option uses a selected
-threshold. Researchers should adjust anchors only after inspecting score
-distributions and substantive examples.
+threshold. Given the small sample size typical in many qualitative and
+mixed-methods studies, the current implementation emphasizes interpretability
+and workflow transparency. Researchers should adjust anchors only after
+inspecting score distributions and substantive examples.
 
 ## Human Judgment
 
@@ -81,7 +86,10 @@ This design supports reproducibility because another researcher can inspect the
 workflow settings and intermediate outputs, not only the final solution table.
 The project intentionally avoids opaque black-box APIs and external model calls.
 That choice limits semantic sophistication, but it makes the scoring process
-inspectable, portable, and suitable for GitHub Pages deployment.
+inspectable, portable, and suitable for GitHub Pages deployment. It also makes
+the limitations easier to see, which is important for a research assistant tool:
+the goal is not to create an automatic truth machine, but to support a more
+disciplined coding and calibration workflow.
 
 ## Interpretation
 
@@ -89,7 +97,8 @@ The outputs should be interpreted as research aids, not automated truth claims.
 A high membership score means that a case is textually and conceptually close to
 the relevant prototype under the current scoring rule. A solution configuration
 indicates a condition pattern associated with the selected outcome in the
-uploaded dataset. Researchers should review individual cases, inspect
+uploaded dataset. In practice, I would read these outputs alongside the original
+texts, not instead of them. Researchers should review individual cases, inspect
 intermediate scores, justify calibration thresholds, and report manual
 adjustments when they affect results.
 
@@ -100,4 +109,6 @@ instability, and the lexical nature of the scoring method. The bilingual bridge
 improves the demo but should be expanded, audited, or replaced for new projects.
 With more time, I would add multilingual embeddings, manual validation labels,
 intercoder comparison, formal minimization algorithms, and richer explanation
-tools that show matched passages rather than only overlapping features.
+tools that show matched passages rather than only overlapping features. I would
+also test the workflow on a messier dataset, because demo data usually behaves
+more neatly than real administrative or consultation text.

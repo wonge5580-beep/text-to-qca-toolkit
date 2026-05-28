@@ -2,15 +2,16 @@
 
 Live demo: https://wonge5580-beep.github.io/text-to-qca-toolkit/
 
-This repository completes Task 2 of the take-home assessment. It provides a
-browser-based toolkit that converts raw text into prototype-based condition
-scores, calibrates those scores into QCA set memberships, and produces
-QCA-ready outputs.
+This repository completes Task 2 of the take-home assessment. It is a small
+browser-based research prototype that converts raw text into prototype-based
+condition scores, calibrates those scores into QCA set memberships, and
+produces QCA-ready outputs.
 
-The tool is designed for digital governance research, especially analysis of
-citizen messages, government replies, public consultation comments, and policy
-feedback. It does not require an API key, backend server, database, or manual
-code editing for the main workflow.
+The tool is designed with digital governance research in mind, especially
+analysis of citizen messages, government replies, public consultation comments,
+and policy feedback. The current version focuses on exploratory research
+support rather than production-level automated coding. It does not require an
+API key, backend server, database, or manual code editing for the main workflow.
 
 ## Quick Start
 
@@ -139,11 +140,12 @@ provides researcher notes and condition-level interpretation statements.
 ## Why Transparency Matters In Computational Social Science
 
 Text-as-data workflows involve measurement choices, calibration decisions, and
-contextual interpretation. The toolkit therefore keeps intermediate outputs
-visible instead of hiding them behind a black-box score. Researchers can inspect
-raw similarity scores, calibrated memberships, adjusted memberships, truth-table
-logic, threshold sensitivity, and the audit trail before interpreting any QCA
-result.
+contextual interpretation. In a real mixed-methods project, the important
+question is not only whether the code runs, but whether the coding decisions can
+be explained. The toolkit therefore keeps intermediate outputs visible instead
+of hiding them behind a black-box score. Researchers can inspect raw similarity
+scores, calibrated memberships, adjusted memberships, truth-table logic,
+threshold sensitivity, and the audit trail before interpreting any QCA result.
 
 ## Reproduce Sample Outputs
 
@@ -165,7 +167,9 @@ The script reads `data/demo_texts.csv` and `data/prototypes.csv`, then writes:
 
 ## Method Summary
 
-The tool uses transparent lexical scoring rather than a hidden model. It
+The tool uses transparent lexical scoring rather than a hidden model. This is a
+deliberate tradeoff: the method is less semantically powerful than a large
+language model, but easier to inspect in a take-home assessment setting. It
 constructs character and word n-gram features for Chinese and English text, adds
 a small bilingual concept bridge for the demo concepts, and calculates cosine
 similarity between each text and each prototype.
